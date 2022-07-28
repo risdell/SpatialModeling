@@ -2,7 +2,7 @@
 
 ------------------------------------------------------------------------
 
-# Lecture 1 - TITLE
+# Lecture 1 - Introduction and Methods
 
 Date: 2022-07-26
 
@@ -19,7 +19,8 @@ Use pre-existing dataset and demonstrate how to graphically display the data
 
 ## Overview of methods
  - [Stanford Stats 253 Lectures](https://web.stanford.edu/class/stats253/lectures.html)
- - When you account for the dependence of the data, the variance (condfidence interval) increases because of pseudoreplication - the variance of the **estimation** increases becuase you're making inferences from fewer independent observations
+ - When you account for the dependence of the data, the variance (condfidence interval) increases because of pseudoreplication 
+ 	 - the variance of the **estimation** increases becuase you're making inferences from fewer independent observations
  - For geostatistical models, typically build upon an exponential decay structure
  - This is part of the Matern family
  
@@ -28,3 +29,29 @@ Use pre-existing dataset and demonstrate how to graphically display the data
  
 ## For Grace
 There are a lot of sloppy statistics out there. I think that most people don't understand the underlying assumptions of most statistical tests, and what violations of those tests mean for **inference vs. prediction** 
+
+# Lecture 2 - Point Processes and GIS approaches
+
+ - Spatial domain - extent of spatial inferences
+ 	 - Critical to not extract beyond spatial domain due to complexity of these processes
+ 	 - The exact model is not generalizable, but there may be components that can be
+ 	 - When data are not homogeneously distributed across space, can be hard to resolve one or another axis
+ 	 - Data need to be contiguous for something like an exponential decay variance structure
+ - Practical approach for spatial data
+ 	 - Start with simple model, then check the residuals; can probably quickly rule out iid
+ 	 - Plot the $\hat{\epsilon}$ vs all covariates in and out of the model
+ 	 - Then plot the e-hats on a map. If pattern, then address spatial dependence
+ - How to check if iid $\phi$-t?
+ 	 - resid plots including $\hat{\phi_t}$ vs. t
+ - If unlikely iid, the nhow to check what dependence structure (for time)?
+ 	 - Plot the (P)ACF of $\hat{\phi_t}$
+ 	 - If pattern is cyclical, it's AR
+ - Spatial equivalent is $\epsilon$-hat-s vs. s
+ 	 - ACF is approximately the variogram
+ 	 - (P)ACF is approximately the correlogram
+ - Look at page 4 of the 698-01-geostat-intro-notes.pdf to get understanding of the nugget
+ 	 - basically divides the error structure into a nugget vs. iid noise
+ 	 - the nugget describes the spatially dependent component
+ 	 - the iid noise is critical to make the models estimable
+ 	 - this creates a separable structure between $\phi$ and $\theta$
+
