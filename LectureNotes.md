@@ -40,13 +40,13 @@ There are a lot of sloppy statistics out there. I think that most people don't u
  - Practical approach for spatial data
  	 - Start with simple model, then check the residuals; can probably quickly rule out iid
  	 - Plot the $\hat{\epsilon}$ vs all covariates in and out of the model
- 	 - Then plot the e-hats on a map. If pattern, then address spatial dependence
- - How to check if iid $\phi$-t?
+ 	 - Then plot the $\hat{\epsilon}$ on a map. If pattern, then address spatial dependence
+ - How to check if iid $\phi_t$?
  	 - resid plots including $\hat{\phi_t}$ vs. t
  - If unlikely iid, the nhow to check what dependence structure (for time)?
  	 - Plot the (P)ACF of $\hat{\phi_t}$
  	 - If pattern is cyclical, it's AR
- - Spatial equivalent is $\epsilon$-hat-s vs. s
+ - Spatial equivalent is $\hat{\epsilon_s}$ vs. s
  	 - ACF is approximately the variogram
  	 - (P)ACF is approximately the correlogram
  - Look at page 4 of the 698-01-geostat-intro-notes.pdf to get understanding of the nugget
