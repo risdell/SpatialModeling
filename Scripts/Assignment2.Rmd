@@ -1,0 +1,148 @@
+---
+title: "Assignment 2"
+author: "Robert Isdell"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, message=FALSE, warning=FALSE}
+library(gstat) # Spatial and Spatio-Temporal Geostatistical Modelling, Prediction and Simulation
+library(rgdal) # Bindings for the 'Geospatial' Data Abstraction Library
+library(sf) # Simple Features for R
+library(spdep) # Spatial Dependence: Weighting Schemes, Statistics
+library(tidyverse) # Easily Install and Load the 'Tidyverse'
+library(tmap) # Thematic Maps
+library(tmaptools) # Thematic Map Tools
+```
+
+## Load the data
+```{r}
+dat <- sf::read_sf(here::here("Data/GIS/PlantDensity.shp"))
+```
+
+## Add a basemap
+```{r}
+bmap <- tmaptools::read_osm(dat, 
+                            ext = 1.1) # add 10% to bounding box
+```
+
+This function pulls the Open Street Map basemap tiles, composites them based on the extent of your input layer, and then saves the input as a raster to add under your features.
+
+## Create the map
+
+### Static
+
+```{r}
+tmap_mode(mode = "plot")
+tmap::tm_shape(bmap) + #in tmap, everything starts as a "shape"
+  tm_rgb() + # this is for multiband display, default options
+  tm_shape(dat) + # Add the next "shape"
+  tm_bubbles(size = "Stems", # bubbles are useful for displaying sizes
+             shape = 21, # pick from the standard pch symbols
+             col = "green",
+             border.col = "black") + # add a border color
+  tm_scale_bar(width = 0.2, # add a scale bar; width in relative units
+               text.size = 2,
+               lwd = 1,
+               position = c("RIGHT", "BOTTOM")) + # Caps for closer to margin
+  tm_compass(type = "arrow", # Add an arrow compass
+             size = 4,
+             position = c(0.85, 0.15)) + # relative position
+  tm_layout(legend.frame = TRUE, # Add a frame and background
+            legend.bg.color = "white",
+            legend.title.size = 2,
+            legend.text.size = 1)
+
+```
+
+## Spatial autocorrelation
+
+```{r}
+hscat(Stems ~ 1, data = dat, breaks = seq(0, 5e4, by = 5e3))
+```
+
+### Variogram
+
+Cloud version.
+
+```{r}
+stemVarCloud <- variogram(Stems~1, dat, cloud = TRUE)
+
+stemVarCloud %>% ggplot(aes(x = dist, y = gamma)) +
+  geom_point(size = 2) +
+  ylab(expression("Semivariance (" *gamma* ")")) +
+  xlab("Distance (m)") +
+  ggtitle("Smooth Cordgrass Stem Density") +
+  theme_classic()
+```
+
+Fixed widths.
+
+```{r}
+stemVar1 <- variogram(Stems~1, dat, cloud = FALSE)
+
+stemVar1 %>% ggplot(aes(x = dist, y = gamma)) +
+  geom_point(size = 2) +
+  ylab(expression("Semivariance (" *gamma* ")")) +
+  xlab("Distance (m)") +
+  ggtitle("Smooth Cordgrass Stem Density") +
+  theme_classic()
+```
+
+
+```{r}
+stemVar2 <- variogram(Stems~1, dat, cloud = FALSE, width = 1000)
+
+stemVar2 %>% ggplot(aes(x = dist, y = gamma)) +
+  geom_point(size = 2) +
+  ylab(expression("Semivariance (" *gamma* ")")) +
+  xlab("Distance (m)") +
+  ggtitle("Smooth Cordgrass Stem Density") +
+  theme_classic()
+```
+
+```{r}
+stemVar3 <- variogram(Stems~1, 
+                      dat, 
+                      cloud = FALSE, 
+                      width = 1000, 
+                      cutoff = 100000)
+
+stemVar3 %>% ggplot(aes(x = dist, y = gamma)) +
+  geom_point(size = 2) +
+  ylab(expression("Semivariance (" *gamma* ")")) +
+  xlab("Distance (m)") +
+  ggtitle("Smooth Cordgrass Stem Density") +
+  theme_classic()
+```
+
+## Moran's I
+
+```{r}
+w <- 1/as.matrix(dist(st_coordinates(dat)))
+diag(w) <- 0
+moran.test(dat$Stems, mat2listw(w))
+```
+
+```{r}
+n <- 10
+res <- data.frame(
+  k = 1:n,
+  I = NA, 
+  p = NA
+)
+
+for(i in 1:n) {
+  w <- knn2nb(knearneigh(dat, k = i))
+  m <- moran.test(dat$Stems, nb2listw(w))
+  res[i,2:3] <- c(m$estimate[1], m$p.value) 
+}
+
+res %>% ggplot(aes(x = k, y = I)) +
+  geom_point(size = 2) +
+  geom_line() +
+  theme_classic() +
+  xlab("Number of Neighbors") +
+  ylab("Moran's I Statistic")
+```
+
