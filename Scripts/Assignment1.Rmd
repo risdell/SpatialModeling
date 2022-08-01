@@ -1,0 +1,84 @@
+---
+title: "tmap Example"
+author: "Robert Isdell"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Example of plotting spatial data using the `tmap` package.
+
+## Load the necessary packages.
+```{r setup, message=FALSE, warning=FALSE}
+library(rgdal) # Bindings for the 'Geospatial' Data Abstraction Library
+library(sf) # Simple Features for R
+library(tidyverse) # Easily Install and Load the 'Tidyverse'
+library(tmap) # Thematic Maps
+library(tmaptools) # Thematic Map Tools
+```
+
+## Load the data
+```{r}
+dat <- sf::read_sf(here::here("Data/GIS/PlantDensity.shp"))
+```
+
+## Add a basemap
+```{r}
+bmap <- tmaptools::read_osm(dat, 
+                            ext = 1.1) # add 10% to bounding box
+```
+
+This function pulls the Open Street Map basemap tiles, composites them based on the extent of your input layer, and then saves the input as a raster to add under your features.
+
+## Create the map
+
+### Static
+
+```{r}
+tmap_mode(mode = "plot")
+tmap::tm_shape(bmap) + #in tmap, everything starts as a "shape"
+  tm_rgb() + # this is for multiband display, default options
+  tm_shape(dat) + # Add the next "shape"
+  tm_bubbles(size = "Stems", # bubbles are useful for displaying sizes
+             shape = 21, # pick from the standard pch symbols
+             col = "green",
+             border.col = "black") + # add a border color
+  tm_scale_bar(width = 0.2, # add a scale bar; width in relative units
+               text.size = 2,
+               lwd = 1,
+               position = c("RIGHT", "BOTTOM")) + # Caps for closer to margin
+  tm_compass(type = "arrow", # Add an arrow compass
+             size = 4,
+             position = c(0.85, 0.15)) + # relative position
+  tm_layout(legend.frame = TRUE, # Add a frame and background
+            legend.bg.color = "white",
+            legend.title.size = 2,
+            legend.text.size = 1)
+
+```
+
+### Interactive
+
+The parts that are commented out aren't valid for viewing mode
+```{r}
+tmap_mode(mode = "view")
+# tmap::tm_shape(bmap) + #in tmap, everything starts as a "shape"
+#   tm_rgb() + # this is for multiband display, default options
+tm_basemap("Stamen.Watercolor") + 
+tm_shape(dat) +
+  tm_dots(col = "Stems", 
+          size = 0.05,
+          shape = 16,
+          border.col = "black",
+          palette = "inferno") +
+  tm_scale_bar(# width = 0.2,
+               text.size = 2,
+               lwd = 1,
+               position = c("left", "bottom")) +
+#   tm_compass(type = "arrow", # not supported in view mode
+#              size = 3) +
+  tm_layout(legend.frame = TRUE,
+            legend.bg.color = "white",
+            legend.title.size = 2,
+            legend.text.size = 1)
+
+```
