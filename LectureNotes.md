@@ -55,3 +55,16 @@ There are a lot of sloppy statistics out there. I think that most people don't u
  	 - the iid noise is critical to make the models estimable
  	 - this creates a separable structure between $\phi$ and $\theta$
 
+# Lecture 3 - Spatial modeling vs GIS approaches
+
+ - Geostatistical weighting
+ 	 - using things like thiessen polygons, voronoi polygons
+ 	 - can set/specify your own weighting - see [Moran's I](https://rspatial.org/terra/analysis/3-spauto.html#compute-morans-i)
+ - Bivand Section 8.4
+ 	 - The variance and the covariance depend on the expectation
+ 	 	 - variance reference is population mean
+ 	 	 - covariance reference is each other - the variogram is the covariance between points
+ 	 - automap package fits a variogram function for you
+ 	 - Grace doesn't spend much time fitting different variograms. Goes straight to working with gaussian, etc.
+ - Check out the directional variograms in [McIntyre 2017](https://rstudio-pubs-static.s3.amazonaws.com/278913_fe56260e076a494fb87904a5c2f226dd.html)
+ - `r '%nin%' <- Negate('%in%')`
