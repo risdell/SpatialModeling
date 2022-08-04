@@ -68,3 +68,30 @@ There are a lot of sloppy statistics out there. I think that most people don't u
  	 - Grace doesn't spend much time fitting different variograms. Goes straight to working with gaussian, etc.
  - Check out the directional variograms in [McIntyre 2017](https://rstudio-pubs-static.s3.amazonaws.com/278913_fe56260e076a494fb87904a5c2f226dd.html)
  - `r '%nin%' <- Negate('%in%')`
+ 
+# Lecture 4 - Spatial modeling vs prediction
+
+ - Prediction using least-squares
+ 	 - use the Best Linear Unbiased Prediction (BLUP) if you want to look away from unbiasedness
+ 	 - Kriging
+ 	 	 - we can use universal kriging now which incorporates uncertainty due to the model
+ - In Gelfand 2010, eq. 1.5 is SAR, and eq. 1.6 is CAR
+ 	 - SAR vs. CAR
+ 	 - The AR means your regressing something on itself
+ 	 - SAR means that the distribution of location i depends on the entire set of locations
+ 	 - CAR means that the distribution of location i only depends on it's "neighbors"
+ 	 	 - ICAR assumes $\alpha$ to be 1 - this just really speeds up computation
+ 	 	 - CAR does not require $\alpha$ to be 1
+ - Gelfand 2010, sections 3.5 and 3.7
+ 	 - Grace recommends not stressing over getting the "right" semivariogram. Pick one, try it, and if it's not working out, pick another.
+ 	 - kriging is synonymous with spatial smoothing which is synonymous with spatial modeling
+ - Bayesian kriging
+ 	 - Bayesian works so well because *everything* is a conditional statement
+ - For Bayesian spatial modeling, always put the spatial correlation in the process level, not the data level
+ - Kriging pushes the surface to make the standard error zero where the data points are - i.e., that the data are the truth (no uncertainty around the measurements)
+ - CAR creates a sparse matrix by creating an adjacency matrix
+ - The Morris et al 2019 slides show how to express an ICAR the absolute fastest
+ 
+ 
+## How long did Challen's CAR+AR model take?
+## What are the problems with assuming N-nearest neighbors for point data?
