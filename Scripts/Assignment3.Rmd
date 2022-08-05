@@ -1,0 +1,185 @@
+---
+title: "Assignment 3"
+author: "Robert Isdell"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, message=FALSE, warning=FALSE}
+library(gstat) # Spatial and Spatio-Temporal Geostatistical Modelling, Prediction and Simulation
+library(maptools) # Tools for Handling Spatial Objects
+library(raster) # Geographic Data Analysis and Modeling
+library(rgdal) # Bindings for the 'Geospatial' Data Abstraction Library
+library(sf) # Simple Features for R
+library(spdep) # Spatial Dependence: Weighting Schemes, Statistics
+library(tidyverse) # Easily Install and Load the 'Tidyverse'
+library(tmap) # Thematic Maps
+library(tmaptools) # Thematic Map Tools
+```
+
+### Load the data
+
+```{r}
+dat <- read_sf(here::here("Data/GIS/FLMarshPearlsUpdated.shp"))
+```
+
+### Quick plot
+
+```{r}
+plot(dat["Pearls"], pch = 16, cex = 2)
+```
+
+### Project to useful coordinates
+
+```{r}
+nad83 <- st_crs("EPSG:3968")
+d2 <- st_transform(dat, crs = nad83)
+```
+
+### Convert to SpatialPointsDataframe
+
+Because gstat is obnoxious.
+
+```{r}
+d3 <- as(d2, "Spatial")
+```
+
+
+## Create a Grid
+
+```{r}
+siteGrid <- raster(
+  d2,
+  res = 0.25,
+  vals = 1
+)
+sitePoints <- as.data.frame(rasterToPoints(siteGrid))
+sitePoints <- SpatialPixelsDataFrame(
+  points = sitePoints[c("x", "y")],
+  data = sitePoints
+)
+gridded(sitePoints) <- TRUE
+fullgrid(sitePoints) <- TRUE
+proj4string(sitePoints) <- proj4string(siteGrid)
+```
+
+## Inverse distance weighting
+
+```{r, message=FALSE}
+pearlIDW <- gstat::idw(
+  formula = Pearls ~ 1,
+  locations = d3,
+  newdata = sitePoints,
+  idp = 0.5
+)
+spplot(pearlIDW, "var1.pred", main = "Power = 0.5")
+pearlIDW1 <- gstat::idw(
+  formula = Pearls ~ 1,
+  locations = d3,
+  newdata = sitePoints,
+  idp = 1
+)
+spplot(pearlIDW1, "var1.pred", main = "Power = 1")
+pearlIDW2 <- gstat::idw(
+  formula = Pearls ~ 1,
+  locations = d3,
+  newdata = sitePoints,
+  idp = 2
+)
+spplot(pearlIDW2, "var1.pred", main = "Power = 2")
+pearlIDW3 <- gstat::idw(
+  formula = Pearls ~ 1,
+  locations = d3,
+  newdata = sitePoints,
+  idp = 3
+)
+spplot(pearlIDW3, "var1.pred", main = "Power = 3")
+```
+
+## Kriging
+
+### Build a variogram
+
+```{r}
+PearlVar <- variogram(Pearls~1, d3, alpha = 45, width = 1)
+summary(PearlVar)
+plot(
+  PearlVar,
+  pch = 20,
+  cex = 1.5,
+  col = "black",
+  ylab = expression("Semivariance ("*gamma*")"),
+  xlab = "Distance (m)",
+  main = "Pearl Counts"
+)
+```
+
+### Fit a model
+
+```{r}
+pow.model <- vgm(
+  model = "Pow",
+  range = 1
+)
+pow.fit <- fit.variogram(
+  object = PearlVar,
+  model = pow.model
+)
+plot(
+  PearlVar,
+  pch = 20,
+  cex = 1.5,
+  col = "black",
+  ylab = expression("Semivariance ("*gamma*")"),
+  xlab = "Distance (m)",
+  main = "Pearl Counts",
+  model = pow.fit
+)
+
+Exp.model <- vgm(
+  model = "Exp",
+  range = 1
+)
+Exp.fit <- fit.variogram(
+  object = PearlVar,
+  model = Exp.model
+)
+plot(
+  PearlVar,
+  pch = 20,
+  cex = 1.5,
+  col = "black",
+  ylab = expression("Semivariance ("*gamma*")"),
+  xlab = "Distance (m)",
+  main = "Pearl Counts",
+  model = Exp.fit
+)
+```
+
+Select the power model.
+
+### Interpolate
+
+```{r, message=FALSE}
+PearlPow <- krige(
+  formula = Pearls~1,
+  d3,
+  sitePoints,
+  model = pow.fit
+)
+spplot(
+  PearlPow,
+  "var1.pred"
+)
+```
+
+### Automap version
+
+```{r, warning=FALSE, message=FALSE}
+PearlVarAuto <- autofitVariogram(Pearls~1, d3)
+plot(PearlVarAuto)
+PearlKrig <- autoKrige(Pearls~1, d3, sitePoints)
+plot(PearlKrig)
+plot(PearlKrig$krige_output)
+```
+
