@@ -1,4 +1,4 @@
-reff.mat <- function(x, sparse = FALSE){
+reff.mat <- function(x){
   xf = factor(x)
   n = length(x)
   tm = matrix(
@@ -7,8 +7,5 @@ reff.mat <- function(x, sparse = FALSE){
     nrow = n
   )
   tm[,1] = ifelse(rowSums(tm[,-1])==0, 1, 0)
-  if(sparse == TRUE){
-    tm[tm==0] <- NA
-  }
   return(tm)
 }
