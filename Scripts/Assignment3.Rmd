@@ -411,20 +411,21 @@ standat <- list(
 options(mc.cores = parallel::detectCores())
 rstan_options(auto_write = TRUE)
 
-mod <- stan_model("Scripts/Assignment3.stan")
-mod <- readRDS(here::here("Scripts/Assignment3.rds"))
+# mod <- stan_model("Scripts/Assignment3.stan")
+# mod <- readRDS(here::here("Scripts/Assignment3.rds"))
 
-fit <- sampling(mod,
-                data = standat,
-                iter = 50000,  ## `iter` _includes_ `warmup` count
-                warmup = 40000,
-                chains = 5,  ## default is 4
-                thin = 2, ## default is 1
-                control = list(adapt_delta = .9,
-                               max_treedepth = 15)
-                ## https://mc-stan.org/misc/warnings.html#divergent-transitions-after-warmup
-)
-saveRDS(fit, "Assigment3Posteriors.rds")
+# fit <- sampling(mod,
+#                 data = standat,
+#                 iter = 50000,  ## `iter` _includes_ `warmup` count
+#                 warmup = 40000,
+#                 chains = 2,  ## default is 4
+#                 thin = 2, ## default is 1
+#                 control = list(adapt_delta = .9,
+#                                max_treedepth = 15)
+#                 ## https://mc-stan.org/misc/warnings.html#divergent-transitions-after-warmup
+# )
+# saveRDS(fit, "Assigment3Posteriors.rds")
+fit <- readRDS(here::here("Assigment3Posteriors.rds"))
 traceplot(fit, pars=c("beta", "sigma", "phi"))
 plot(fit, pars=c("beta", "sigma"))
 ```
@@ -439,6 +440,8 @@ nbInfo <- nb2WB(W.nb)
 ```
 
 ```{r}
+library(nimble)
+
 nregions <- nrow(PearlPolys)
 
 PearlConstants <- list(
@@ -451,7 +454,7 @@ PearlConstants <- list(
 )
 
 NimbleData <- list(
-  count = round(PearlPolys$Pearls)
+  count = PearlPolys$Pearls
 )
 
 NimbleInits <- list(beta0 = 0, beta1 = 0, sigma = 1, s = rnorm(nregions))
@@ -462,13 +465,13 @@ m1 <- nimbleCode({
   beta1 ~ dnorm(0, 5)
   sigma ~ dexp(1)
   tau <- 1/sigma^2
-  rate ~ dexp(1)
+  shape ~ dexp(1)
   # latent process
-  s[1:n] ~ dcar_normal(adj[1:L], weights[1:L], num[1:n], tau, zero_mean = 0)
+  s[1:n] ~ dcar_normal(adj[1:L], weights[1:L], num[1:n], tau = 1, zero_mean = 0)
   # likelihood
   for(j in 1:n) {
-    count[j] ~ dpois(lambda[j])
-    log(lambda[j]) <- beta0 + beta1*mussels[j] + s[j]
+    count[j] ~ dgamma(shape, shape/exp(lp[j]))
+    lp[j] <- beta0 + beta1*mussels[j] + s[j]
   }
 })
 
@@ -493,5 +496,78 @@ samples <- runMCMC(
   niter = 100000, 
   nburnin = 90000,
   thin = 2)
+```
+
+# spBayes
+```{r, message=FALSE, warning=FALSE}
+library(spBayes)
+library(MBA)
+library(fields)
+library(classInt)
+library(lattice)
+```
+
+```{r}
+data("BEF.dat")
+BEF.dat <- BEF.dat[BEF.dat$ALLBIO02_KGH>0,]
+bio <- BEF.dat$ALLBIO02_KGH*0.001
+log.bio <- log(bio)
+coords <- as.matrix(BEF.dat[,c("XUTM", "YUTM")])
+p <- 6
+beta.prior.mean <- as.matrix(rep(0, times = p))
+beta.prior.precision <- matrix(0, nrow = p, ncol = p)
+phi <- 0.014
+alpha <- 0.016/0.08
+sigma.sq.prior.shape <- 2.0
+sigma.sq.prior.rate <- 0.08
+sp.exact <- bayesGeostatExact(
+  log.bio~ELEV+SLOPE+SUM_02_TC1+SUM_02_TC2+SUM_02_TC3,
+  data = BEF.dat, 
+  coords = coords, 
+  n.samples = 1000,
+  beta.prior.mean = beta.prior.mean,
+  beta.prior.precision = beta.prior.precision,
+  cov.model = "exponential",
+  phi = phi, 
+  alpha = alpha,
+  sigma.sq.prior.shape = sigma.sq.prior.shape,
+  sigma.sq.prior.rate = sigma.sq.prior.rate,
+  sp.effects = FALSE
+)
+
+n.samples <- 10000
+
+bef.sp <- spLM(log.bio~ELEV+SLOPE+SUM_02_TC1+SUM_02_TC2
+               +SUM_02_TC3,
+               data=BEF.dat, coords=coords,
+               starting=list("phi"=3/200,"sigma.sq"=0.08,
+                             "tau.sq"=0.02),
+               tuning=list("phi"=0.1, "sigma.sq"=0.05,
+                           "tau.sq"=0.05),
+               priors=list("phi.Unif"=c(3/1500, 3/50),
+                           "sigma.sq.IG"=c(2, 0.08),
+                           "tau.sq.IG"=c(2, 0.02)),
+               cov.model="exponential",n.samples=n.samples
+)
+
+burn.in <- floor(0.75*n.samples)
+bef.sp <- spRecover(bef.sp, start=burn.in)
+
+beta.samples = bef.sp$p.beta.recover.samples
+w.samples = bef.sp$p.w.recover.samples
+
+w.hat.mu <- apply(w.samples,1,mean)
+
+
+
+
+surf <- mba.surf(cbind(coords, w.hat.mu),
+                 no.X=150, no.Y=150,
+                 extend=FALSE)$xyz.est
+z.lim <- range(surf[[3]], na.rm=TRUE)
+image.plot(surf, xaxs = "r", yaxs = "r",
+           zlim=z.lim, main="Mean spatial effects")
+
+
 ```
 
