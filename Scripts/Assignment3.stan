@@ -23,9 +23,6 @@ transformed parameters {
   phi[n] = -sum(phi_raw);
 }
 
-// The model to be estimated. We model the output
-// 'y' to be normally distributed with mean 'mu'
-// and standard deviation 'sigma'.
 model {
   // Likelihood
   count ~ poisson_log(Xmat * beta + phi * sigma);
@@ -34,4 +31,9 @@ model {
   beta ~ normal(0, 10);
   sigma ~ exponential(0.5);
 }
+
+// generated quantities {
+//   int<lower=0> ynew[n];
+//   ynew = poisson_rng(Xmat * beta + phi * sigma);
+// }
 

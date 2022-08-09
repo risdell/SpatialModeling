@@ -13,6 +13,7 @@ library(maptools) # Tools for Handling Spatial Objects
 library(Matrix)
 library(raster) # Geographic Data Analysis and Modeling
 library(rgdal) # Bindings for the 'Geospatial' Data Abstraction Library
+library(rstan)
 library(sf) # Simple Features for R
 library(spdep) # Spatial Dependence: Weighting Schemes, Statistics
 library(tidyverse) # Easily Install and Load the 'Tidyverse'
@@ -390,5 +391,107 @@ mc <- function (x, w, digits = 3, warn = TRUE) {
 C <- spdep::nb2mat(spdep::poly2nb(PearlPolys, queen = TRUE),
                    style = "B", zero.policy = TRUE)
 icar.data <- prep_icar_data(C)
+```
+
+## Run the model
+
+```{r}
+Xmat <- model.matrix(lm(Pearls~Mussels, data = d3))
+
+standat <- list(
+  n = 20,
+  m = 2,
+  Xmat = Xmat,
+  count = round(d3$Pearls),
+  N_edges = icar.data$n_edges,
+  node1 = icar.data$node1,
+  node2 = icar.data$node2
+)
+
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+
+mod <- stan_model("Scripts/Assignment3.stan")
+mod <- readRDS(here::here("Scripts/Assignment3.rds"))
+
+fit <- sampling(mod,
+                data = standat,
+                iter = 50000,  ## `iter` _includes_ `warmup` count
+                warmup = 40000,
+                chains = 5,  ## default is 4
+                thin = 2, ## default is 1
+                control = list(adapt_delta = .9,
+                               max_treedepth = 15)
+                ## https://mc-stan.org/misc/warnings.html#divergent-transitions-after-warmup
+)
+saveRDS(fit, "Assigment3Posteriors.rds")
+traceplot(fit, pars=c("beta", "sigma", "phi"))
+plot(fit, pars=c("beta", "sigma"))
+```
+
+
+## NIMBLE
+
+```{r}
+W.nb <- poly2nb(PearlPolys, row.names =  rownames(PearlPolys@data))
+## Determine neighborhood/adjacency information needed for neighborhood-based CAR model
+nbInfo <- nb2WB(W.nb)
+```
+
+```{r}
+nregions <- nrow(PearlPolys)
+
+PearlConstants <- list(
+  n = nregions, 
+  L = length(nbInfo$adj), 
+  adj = nbInfo$adj, 
+  weights = nbInfo$weights, 
+  num = nbInfo$num,
+  mussels = as.vector(scale(PearlPolys$Mussels))
+)
+
+NimbleData <- list(
+  count = round(PearlPolys$Pearls)
+)
+
+NimbleInits <- list(beta0 = 0, beta1 = 0, sigma = 1, s = rnorm(nregions))
+
+m1 <- nimbleCode({
+  # Priors
+  beta0 ~ dnorm(0, 100)
+  beta1 ~ dnorm(0, 5)
+  sigma ~ dexp(1)
+  tau <- 1/sigma^2
+  rate ~ dexp(1)
+  # latent process
+  s[1:n] ~ dcar_normal(adj[1:L], weights[1:L], num[1:n], tau, zero_mean = 0)
+  # likelihood
+  for(j in 1:n) {
+    count[j] ~ dpois(lambda[j])
+    log(lambda[j]) <- beta0 + beta1*mussels[j] + s[j]
+  }
+})
+
+PearlModel <- nimbleModel(
+  m1, 
+  constants = PearlConstants, 
+  data = NimbleData, 
+  inits = NimbleInits
+)
+
+cModel <- compileNimble(PearlModel)
+
+# Check the samplers
+conf <- configureMCMC(PearlModel, monitors = c('beta0', 'beta1', 'sigma', 's'))
+conf$printSamplers()
+
+MCMC <- buildMCMC(conf)
+cMCMC <- compileNimble(MCMC, project = cModel)
+
+samples <- runMCMC(
+  cMCMC, 
+  niter = 100000, 
+  nburnin = 90000,
+  thin = 2)
 ```
 
