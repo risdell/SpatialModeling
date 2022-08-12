@@ -95,3 +95,28 @@ There are a lot of sloppy statistics out there. I think that most people don't u
  
 ## How long did Challen's CAR+AR model take?
 ## What are the problems with assuming N-nearest neighbors for point data?
+
+# Lecture 5 - Areal data, MRF models, and spatial models in ecology
+
+ - Make sure to reference the misalignment of your response and covariates spatially (e.g., $y$ is per individual, $x$ is per quad) in [Gelfand Ch. 29](https://ebookcentral-proquest-com.proxy.wm.edu/lib/cwm/detail.action?docID=555701).
+ - Markov Random Fields
+ 	 - Jargon in temporal models
+ 	 - Markov random fields is just a fancy way to say CAR model
+ 	 	 - MRF can be continuous while CAR is typically discrete
+ 	 - [MRF example](https://rpubs.com/chrisbrunsdon/sds3)
+ 	 - GAMs in mgcv can be useful for quick estimation of whether to include various terms/interactions
+ - Ver Hoef paper:
+ 	 - SAR models do not require that the **W** matrix does not have to be symmetric
+ 	 	 - think about times where site 1 has more influence on site 2 than site 2 has on site 1
+ 	 	 
+# Lecture 6 - Spatiotemporal modeling
+
+ - spatautolm() in `spatialreg` provides a quick way of testing whether you even need a spatial model
+ - For spatiotemporal, use muliplicative vs. additive for "separable" terms
+ - conditional separability means fixing space and looking at time (sequentially) or fixing time and looking at space
+ - Challen's presentation
+ 	 - Could you have settled on a finer bin distance and then done a SRS approach?
+ 	 - Offset is just a forced division in the model where the $\beta$ is set to 1
+ 	 - The weights matrix is dependent on the number of neighboring polygons
+ 	 - LOO starts to break down when you have autocorrelation among the covariance, where it can sort of infer what's missing in these systems, so you overestimate how well your model is doing
+ 	 - 
